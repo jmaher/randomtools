@@ -52,7 +52,9 @@ def loadPushLogCache():
                 return
 
             # oldest to newest - I assume
-            for push in data['pushes']:
+            pushes = data['pushes'].keys()
+            pushes.sort()
+            for push in pushes:
                 rev = data['pushes'][push]['changesets'][0][:12]
                 pushlog_cache[branch].append(rev)
         savePushLogCache()
@@ -306,8 +308,8 @@ dates = set(phdata.keys()) | set(gsdata.keys())
 dates = sorted(dates)
 
 for date in dates:
-    if date < '2015-06-18':
-        continue
+#    if date < '2015-06-18':
+#        continue
 
     print "%s:" % date
     if date in phdata and date in gsdata:
@@ -333,16 +335,30 @@ for date in dates:
                         pass
                 elif gitem[5] == pitem[5] or fuzzyRevisionMatch(gitem[0], gitem[5], pitem[5]) <= 10:
                     #fuzzy match - percent is off, but all other data is close
-                    print "$$ %s. g.%s != p.%s" % (gitem, gitem[3], pitem[3])
+#                    print "$$ %s. g.%s != p.%s" % (gitem, gitem[3], pitem[3])
                     pass
                 else:
                     #minimum match
                     print "@@ %s. g.%s != p.%s / g.%s != p.%s (%s rev diff)" % (gitem, gitem[3], pitem[3], gitem[5], pitem[5], fuzzyRevisionMatch(gitem[0], gitem[5], pitem[5]))
             else:
                 #no match
-                print "p. %s." % (pitem)
+                try:
+                    br = pitem[0].split('-non-pgo')[0]
+                    if br != 'mozilla-central':
+                        br = 'integration/%s' % br
+                    rindex = pushlog_cache[br].index(pitem[5])
+                except:
+                    rindex = -1
+                print "p. %s. (index: %s)" % (pitem, rindex)
         for gitem in gsdata_extra:
-            print "g.%s." % (gitem)
+            try:
+                br = gitem[0].split('-non-pgo')[0]
+                if br != 'mozilla-central':
+                    br = 'integration/%s' % br
+                rindex = pushlog_cache[br].index(gitem[5])
+            except:
+                rindex = -1
+            print "g.%s. (index: %s)" % (gitem, rindex)
 
     #TODO: deal with gdata only alerts
 
@@ -355,10 +371,17 @@ for date in dates:
             print "-gs- %s" % item
     """
 
-
-
 # store in: branch, platform, test, date, percent
 #for revision in revisions:
 #    compareRevision(revision)
+
+"""
+for key in pushlog_cache.keys():
+    print "%s: %s" % (key, len(pushlog_cache[key]))
+    for r in pushlog_cache[key]:
+        if r == "d71995d0ccd2":
+            print "key: %s, index: %s" % (key, pushlog_cache[key].index(r))
+"""
+
 
 
