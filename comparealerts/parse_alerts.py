@@ -157,6 +157,10 @@ def importPHData(filename):
             if datetime.datetime.strptime(data[4], "%Y-%m-%d %H-%M-%S") > datetime.datetime.strptime('2015-07-02', "%Y-%m-%d"):
                 continue
 
+            #TODO: we don't use the v8 formula in perfherder
+            if data[2] == 'v8_7':
+                continue
+
             if data[4].split(' ')[0] not in phdata.keys():
                 phdata[data[4].split(' ')[0]] = []
             phdata[data[4].split(' ')[0]].append(data)
@@ -188,6 +192,10 @@ def importGSData(filename):
             #TODO: we should support this!!!!
             # we don't do anything for tp5n xperf bits
             if data[2] == 'tp5n' or data[2] == 'xperf':
+                continue
+
+            #TODO: we don't use the v8 formula in perfherder
+            if data[2] == 'v8_7':
                 continue
 
             # flip flop data 4 and 3
@@ -308,8 +316,8 @@ dates = set(phdata.keys()) | set(gsdata.keys())
 dates = sorted(dates)
 
 for date in dates:
-#    if date < '2015-06-18':
-#        continue
+    if date < '2015-06-18':
+        continue
 
     print "%s:" % date
     if date in phdata and date in gsdata:
