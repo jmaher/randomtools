@@ -128,6 +128,7 @@ def isReverseTest(name):
 #   branch, platform, test, percentage, date, revision
 
 def importPHData(filename):
+    global revision_cache
     phdata = {}
     branch = 0
     plat = 1
@@ -181,8 +182,7 @@ def importPHData(filename):
                     data[3] = float("%.2f" % (abs(float(row[pct]))))
 
                 if item == date:
-                    # date to human date
-                    data[4] = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime(float(row[date])))
+                    data[4] = getRevisionDate(data[0], row[rev])
 
             # TODO: this is hacky and depends on the data we are working with
             if datetime.datetime.strptime(data[4], "%Y-%m-%d %H-%M-%S") < datetime.datetime.strptime('2015-08-30', "%Y-%m-%d"):
@@ -204,7 +204,6 @@ def importPHData(filename):
     return phdata
 
 def importGSData(filename):
-    loadRevisionCache()
 
     gsdata = {}
     with open(filename, 'rb') as fHandle:
@@ -220,10 +219,7 @@ def importGSData(filename):
             if data[1] == 'android-4-0-armv7-api11':
                 data[0] = "%s-non-pgo" % data[0]
 
-            if data[1] == 'osx-10-10':
-                data[0] = "%s-non-pgo" % data[0]
-
-            if data[1] == 'osx-10-10-e10s':
+            if data[1].startswith('osx-10-10'):
                 data[0] = "%s-non-pgo" % data[0]
 
             # make percent x.xx
@@ -233,13 +229,10 @@ def importGSData(filename):
             if datetime.datetime.strptime(data[3], "%Y-%m-%d %H:%M:%S") > datetime.datetime.strptime('2015-10-04', "%Y-%m-%d"):
                 continue
 
-            #TODO: we should support this!!!!
-            # we don't do anything for tp5n xperf bits
-#            if data[2] == 'tp5n' or data[2] == 'xperf':
-#                continue
-
             # flip flop data 4 and 3
             data[3] = abs(float(data[4]))
+            data[5] = data[5][:12]
+
             # get the actual push date
             data[4] = getRevisionDate(data[0], data[5])
 
@@ -252,14 +245,11 @@ def importGSData(filename):
                                'b2g-inbound', 'b2g-inbound-non-pgo']:
                 continue
 
-            data[5] = data[5][:12]
-
             if data[4].split(' ')[0] not in gsdata.keys():
                 gsdata[data[4].split(' ')[0]] = []
             gsdata[data[4].split(' ')[0]].append(data)
             sorted(gsdata[data[4].split(' ')[0]], key=lambda d: d[4])
 
-    saveRevisionCache()
     return gsdata
 
 
@@ -312,14 +302,11 @@ def compareRevision(revision):
 
 # match branch (0), platform (1), test (2), and fuzzy match revision (5)
 def findMatch(target, haystack, rev):
-#    print "target: %s" % target
     for item in haystack:
-#        print " - item: %s" % item
         if item[0] == target[0] and \
            item[1] == target[1] and \
            fuzzyRevisionMatch(target[0], target[5], item[5]) <= 10 and \
            item[2] == target[2]:
-#            print "match!"
             return item
     return None
 
@@ -358,8 +345,10 @@ def fuzzyRevisionMatch(branch, rev1, rev2):
     return 100
 
 loadPushLogCache()
+loadRevisionCache()
 phdata = importPHData('perfalerts.csv')
 gsdata = importGSData('alerts.csv')
+saveRevisionCache()
 
 dates = set(phdata.keys()) | set(gsdata.keys())
 dates = sorted(dates)
