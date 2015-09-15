@@ -54,7 +54,8 @@ TBPL_TESTS = {
     'Devtools At Maximum Performance': {'testname': 'damp', 'wikiname': 'DAMP', 'jobname': 'g2'},
     'Tp5 Optimized (XRes)': {'testname': 'tp5o', 'wikiname': 'tp5o', 'jobname': 'tp'},
     'Number of Constructors': {'testname': 'build', 'wikiname': 'Other_data', 'jobname': 'undefined'},
-    'Tp5 No Network Row Major MozAfterPaint (Non-Main Normal File IO Bytes)': {'testname': 'xperf', 'wikiname': 'xperf', 'jobname': 'xperf'}
+    'Tp5 No Network Row Major MozAfterPaint (Non-Main Normal File IO Bytes)': {'testname': 'xperf', 'wikiname': 'xperf', 'jobname': 'xperf'},
+    'Talos Page Switch': {'testname': 'tps', 'wikiname': 'tps', 'jobname': 'g2'}
 }
 
 PLATFORMS = {'ubuntu hw 12.04 x64': 'linux64',
@@ -69,8 +70,8 @@ PLATFORMS = {'ubuntu hw 12.04 x64': 'linux64',
              'winnt 5.1 (e10s)': 'windowsxp-e10s',
              'macosx 10.6 (rev4)': 'osx10.6',
              'macosx 10.8': 'osx10.8',
-             'macosx 10.10': 'osx10.10',
-             'macosx 10.10 (e10s)': 'osx10.10-e10s',
-             'android 4.0.4': 'android-4.0'
+             'macosx 10.10': 'osx-10-10',
+             'macosx 10.10 (e10s)': 'osx-10-10-e10s',
+             'android 4.0.4': 'android-4-0-armv7-api11'
              }
 

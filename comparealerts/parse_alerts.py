@@ -42,8 +42,9 @@ def loadPushLogCache():
                        'mozilla-central']:
             pushlog_cache[branch] = []
 
-            dateArgs = "startdate=2015-04-01&enddate=2015-07-04"
+            dateArgs = "startdate=2015-09-01&enddate=2015-09-15"
             url = "https://hg.mozilla.org/%s/json-pushes?version=2&tipsonly=1&%s" % (branch, dateArgs)
+            print url
             try:
                 response = requests.get(url, headers={'accept-encoding':'json'}, verify=True)
                 data = response.json()
@@ -101,6 +102,28 @@ def getRevisionDate(branch, rev):
     return date
 
 
+def isReverseTest(name):
+    try:
+        if name.lower().index('canvas') >= 0:
+            return True
+    except ValueError:
+        pass
+
+    try:
+        if name.lower().index('dromaeo') >= 0:
+            return True
+    except ValueError:
+        pass
+
+    try:
+        if name.lower().index('v8') >= 0:
+            return True
+    except ValueError:
+        pass
+
+    return False
+
+
 # ensure we have:
 #   branch, platform, test, percentage, date, revision
 
@@ -110,6 +133,7 @@ def importPHData(filename):
     plat = 1
     test = 3
     date = 5
+    change = 6
     pct = 7
     rev = 9
 
@@ -121,11 +145,23 @@ def importPHData(filename):
                 firstrow = False
                 continue
 
-            if float(row[pct]) < 2.0:
+            row[pct] = float(row[pct])
+            if float(row[change]) < 0.0:
+                row[pct] = row[pct] * -1.0
+
+            if isReverseTest(row[test]):
+                row[pct] = row[pct] * -1.0
+
+            if float(row[pct]) > -2.0 and float(row[pct]) < 2.0:
+#                print "skipping too small: %s (reverse: %s)" % (row[pct], isReverseTest(row[test]))
+#                print "  %s" % row
                 continue
 
-            if float(row[pct]) < 10.0 and row[test].startswith('dromaeo'):
+            if float(row[pct]) > -10.0 and row[test].startswith('dromaeo'):
+                print "skipping dromaeo: %s" % row
                 continue
+
+            row[pct] = str(row[pct])
 
             data = []
             for item in [branch, plat, test, pct, date, rev]:
@@ -148,13 +184,12 @@ def importPHData(filename):
                     # date to human date
                     data[4] = time.strftime('%Y-%m-%d %H-%M-%S', time.localtime(float(row[date])))
 
-
             # TODO: this is hacky and depends on the data we are working with
-            if datetime.datetime.strptime(data[4], "%Y-%m-%d %H-%M-%S") < datetime.datetime.strptime('2015-03-30', "%Y-%m-%d"):
+            if datetime.datetime.strptime(data[4], "%Y-%m-%d %H-%M-%S") < datetime.datetime.strptime('2015-08-30', "%Y-%m-%d"):
                 continue
 
             # TODO: this is hacky and depends on the data we are working with
-            if datetime.datetime.strptime(data[4], "%Y-%m-%d %H-%M-%S") > datetime.datetime.strptime('2015-07-02', "%Y-%m-%d"):
+            if datetime.datetime.strptime(data[4], "%Y-%m-%d %H-%M-%S") > datetime.datetime.strptime('2015-10-02', "%Y-%m-%d"):
                 continue
 
             #TODO: we don't use the v8 formula in perfherder
@@ -173,7 +208,7 @@ def importGSData(filename):
 
     gsdata = {}
     with open(filename, 'rb') as fHandle:
-        alerts = csv.reader(fHandle, delimiter='\t')
+        alerts = csv.reader(fHandle, delimiter=',')
         for row in alerts:
             data = []
             for item in row:
@@ -182,21 +217,26 @@ def importGSData(filename):
             data[2] = TBPL_TESTS[row[2]]['testname']
             data[1] = PLATFORMS[row[1].lower()]
 
+            if data[1] == 'android-4-0-armv7-api11':
+                data[0] = "%s-non-pgo" % data[0]
+
+            if data[1] == 'osx-10-10':
+                data[0] = "%s-non-pgo" % data[0]
+
+            if data[1] == 'osx-10-10-e10s':
+                data[0] = "%s-non-pgo" % data[0]
+
             # make percent x.xx
             data[4] = "%.2f" % (float(row[4].strip('%')))
 
             # TODO: this is hacky and depends on the data we are working with
-            if datetime.datetime.strptime(data[3], "%Y-%m-%d %H:%M:%S") > datetime.datetime.strptime('2015-07-04', "%Y-%m-%d"):
+            if datetime.datetime.strptime(data[3], "%Y-%m-%d %H:%M:%S") > datetime.datetime.strptime('2015-10-04', "%Y-%m-%d"):
                 continue
 
             #TODO: we should support this!!!!
             # we don't do anything for tp5n xperf bits
-            if data[2] == 'tp5n' or data[2] == 'xperf':
-                continue
-
-            #TODO: we don't use the v8 formula in perfherder
-            if data[2] == 'v8_7':
-                continue
+#            if data[2] == 'tp5n' or data[2] == 'xperf':
+#                continue
 
             # flip flop data 4 and 3
             data[3] = abs(float(data[4]))
@@ -211,6 +251,8 @@ def importGSData(filename):
                                'mozilla-inbound', 'mozilla-inbound-non-pgo',
                                'b2g-inbound', 'b2g-inbound-non-pgo']:
                 continue
+
+            data[5] = data[5][:12]
 
             if data[4].split(' ')[0] not in gsdata.keys():
                 gsdata[data[4].split(' ')[0]] = []
@@ -268,12 +310,16 @@ def compareRevision(revision):
             print "  %s" % e
 
 
+# match branch (0), platform (1), test (2), and fuzzy match revision (5)
 def findMatch(target, haystack, rev):
+#    print "target: %s" % target
     for item in haystack:
+#        print " - item: %s" % item
         if item[0] == target[0] and \
            item[1] == target[1] and \
            fuzzyRevisionMatch(target[0], target[5], item[5]) <= 10 and \
            item[2] == target[2]:
+#            print "match!"
             return item
     return None
 
@@ -292,6 +338,9 @@ def fuzzyMatch(val1, val2):
 
 def fuzzyRevisionMatch(branch, rev1, rev2):
     global pushlog_cache
+
+    if rev1 == rev2:
+        return 0
 
     branch = branch.split('-non-pgo')[0]
 
@@ -316,7 +365,7 @@ dates = set(phdata.keys()) | set(gsdata.keys())
 dates = sorted(dates)
 
 for date in dates:
-    if date < '2015-06-18':
+    if date < '2015-09-05':
         continue
 
     print "%s:" % date
@@ -336,14 +385,14 @@ for date in dates:
                     # match revision?
                     if gitem[5] == pitem[5] or fuzzyRevisionMatch(gitem[0], gitem[5], pitem[5]) <= 10:
                         #perfect match: percent and revision
-#                        print "!! %s" % gitem
+                        print "!! %s" % gitem
                         pass
                     else:
                         print "## %s. g.%s != p.%s (%s pushes diff)" % (gitem, gitem[5], pitem[5], fuzzyRevisionMatch(gitem[0], gitem[5], pitem[5]))
                         pass
                 elif gitem[5] == pitem[5] or fuzzyRevisionMatch(gitem[0], gitem[5], pitem[5]) <= 10:
                     #fuzzy match - percent is off, but all other data is close
-#                    print "$$ %s. g.%s != p.%s" % (gitem, gitem[3], pitem[3])
+                    print "$$ %s. g.%s != p.%s" % (gitem, gitem[3], pitem[3])
                     pass
                 else:
                     #minimum match
