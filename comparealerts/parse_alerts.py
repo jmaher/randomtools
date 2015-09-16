@@ -172,9 +172,15 @@ def importPHData(filename):
                 if item == test:
                     if row[test].endswith('opt'):
                         data[0] = "%s-non-pgo" % row[branch]
-                    data[2] = row[test].split('summary')[0].strip()
-                    if row[test].split('summary')[1].strip().startswith('e10s'):
-                        data[1] = "%s-e10s" % row[plat]
+                    if (len(row[test].split('summary')) > 1):
+                        data[2] = row[test].split('summary')[0].strip()
+                        if row[test].split('summary')[1].strip().startswith('e10s'):
+                            data[1] = "%s-e10s" % row[plat]
+                    else:
+                        data[2] = ' '.join(row[test].split(' ')[:-1])
+                        if ' '.join(row[test].split(' ')[-2:]).startswith('e10s'):
+                            data[2] = ' '.join(row[test].split(' ')[:-2])
+                            data[1] = "%s-e10s" % row[plat]
 
                 if item == pct:
                     # make percent x.xx%
@@ -185,12 +191,12 @@ def importPHData(filename):
                     data[4] = getRevisionDate(data[0], row[rev])
 
             # TODO: this is hacky and depends on the data we are working with
-            if datetime.datetime.strptime(data[4], "%Y-%m-%d %H-%M-%S") < datetime.datetime.strptime('2015-08-30', "%Y-%m-%d"):
-                continue
+#            if datetime.datetime.strptime(data[4], "%Y-%m-%d %H-%M-%S") < datetime.datetime.strptime('2015-08-30', "%Y-%m-%d"):
+#                continue
 
             # TODO: this is hacky and depends on the data we are working with
-            if datetime.datetime.strptime(data[4], "%Y-%m-%d %H-%M-%S") > datetime.datetime.strptime('2015-10-02', "%Y-%m-%d"):
-                continue
+#            if datetime.datetime.strptime(data[4], "%Y-%m-%d %H-%M-%S") > datetime.datetime.strptime('2015-10-02', "%Y-%m-%d"):
+#                continue
 
             #TODO: we don't use the v8 formula in perfherder
             if data[2] == 'v8_7':
@@ -226,8 +232,8 @@ def importGSData(filename):
             data[4] = "%.2f" % (float(row[4].strip('%')))
 
             # TODO: this is hacky and depends on the data we are working with
-            if datetime.datetime.strptime(data[3], "%Y-%m-%d %H:%M:%S") > datetime.datetime.strptime('2015-10-04', "%Y-%m-%d"):
-                continue
+#            if datetime.datetime.strptime(data[3], "%Y-%m-%d %H:%M:%S") > datetime.datetime.strptime('2015-10-04', "%Y-%m-%d"):
+#                continue
 
             # flip flop data 4 and 3
             data[3] = abs(float(data[4]))
@@ -354,7 +360,8 @@ dates = set(phdata.keys()) | set(gsdata.keys())
 dates = sorted(dates)
 
 for date in dates:
-    if date < '2015-09-05':
+    # HACK: This sucks
+    if date < '2015-09-01':
         continue
 
     print "%s:" % date
