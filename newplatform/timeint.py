@@ -88,5 +88,8 @@ for data in [tcjobs, bbjobs]:
 
 keys = Set(tcjobs.keys())
 keys ^= Set(bbjobs.keys())
-#print keys
+print "\n"
+print "jobtypes we are ignoring:"
+for k in keys:
+    print k
 
