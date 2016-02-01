@@ -381,7 +381,7 @@ for date in dates:
                     # match revision?
                     if gitem[5] == pitem[5] or fuzzyRevisionMatch(gitem[0], gitem[5], pitem[5]) <= 10:
                         #perfect match: percent and revision
-                        print "!! %s" % gitem
+#                        print "!! %s" % gitem
                         pass
                     else:
                         print "## %s. g.%s != p.%s (%s pushes diff)" % (gitem, gitem[5], pitem[5], fuzzyRevisionMatch(gitem[0], gitem[5], pitem[5]))
