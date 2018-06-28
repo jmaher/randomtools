@@ -6,3 +6,6 @@ select distinct jn.text as fixed_by_revision, p.revision as failed_revision, op.
 
 
 
+save the data in a .csv format to SETA_testnames.csv
+run: python localseta.py
+* profit
