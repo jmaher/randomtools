@@ -6,9 +6,12 @@ Some intended use cases:
 3) adjust alert parameters to determine if we get more/less alerts with different thresholds/parameters
 
 Usage:
+```
   python perfherder_alerts.py
+```
 
 Current output:
+```
   opt:ttfi                                            <- opt||pgo : <metric> 
   <1545319998: 416379, [ 596.500 ], 7.076, True>      <- alert found <timestamp: pushid, [ value ], ttest result, alert T|F>
   <1545607037: 417328, [ 626.500 ], 9.357, True>
@@ -39,5 +42,6 @@ Current output:
   opt:dcf
   <1545319998: 416379, [ 172.000 ], 7.654, True>
   opt:loadtime
+```
 
 you can see from this output that maybe pushids are common, one could assume that many of these alerts would be in the same alert summary.
