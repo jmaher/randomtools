@@ -21,8 +21,6 @@ platforms = ['windows10-64', 'windows10-64-qr',
              'windows7-32',
              'android-hw-p2-8-0-arm7-api-16', 'android-hw-p2-8-0-android-aarch64',
              'android-hw-g5-7-0-arm7-api-16']
-# TODO: define test names, maybe we need to store these as a data file
-# TODO: watch out for platforms/branches/frameworks/testname specifics
 
 
 # given raw data from a given perfherder signature,
@@ -77,7 +75,7 @@ def getSignatures(branch, framework, platform):
     return getUrl(url, key)
 
 
-def filterSignatureIds(signatures, testname):
+def filterSignatureIds(signatures, testname, subtests):
     sig_ids = []
     for sig in signatures:
         if signatures[sig]['suite'] == testname:
@@ -89,11 +87,13 @@ def filterSignatureIds(signatures, testname):
             # we have a subtest
             if 'test' in signatures[sig]:
                 metric = signatures[sig]['test'].split(testname)[-1].strip('-')
+                if not subtests:
+                    continue
+
             sig_ids.append({'id': signatures[sig]['id'], 'metric': metric, 'option': option})
     return sig_ids
 
 def analyzeData(sig, branch, framework):
-    print "%s:%s" % (sig['option'], sig['metric'])
     url = "https://treeherder.mozilla.org/api/project/%s/performance/data/?framework=%s&interval=%s&signature_id=%s"  % (branch, framework, interval, sig['id'])
     key = "%s-%s-%s" % (branch, framework, sig['id'])
     payload = getUrl(url, key)
@@ -106,20 +106,40 @@ def analyzeData(sig, branch, framework):
     return regressions
 
 
+def getTestNames(branch, framework, platform):
+    signatures = getSignatures(branch, framework, platform)
+    names = []
+    for sig in signatures:
+        if signatures[sig]['suite'] not in names:
+            names.append(signatures[sig]['suite'])
+    return names
+
+
+def analyzeTest(framework, branch, platform, testname, subtests):
+    signatures = getSignatures(branch, framework, platform)
+    sig_ids = filterSignatureIds(signatures, testname, subtests)
+
+    for sig in sig_ids:
+        regressions = analyzeData(sig, branch, framework)
+        print "%s: %s:%s" % (testname, sig['option'], sig['metric'])
+        for d in regressions:
+            print d
+
+
 def main():
     # variables
     framework = getFrameworkId('raptor')
     branch = 'mozilla-inbound'
     platform = 'windows10-64'
-    testname = 'raptor-tp6-facebook-firefox'
+    subtests = False
 
-    signatures = getSignatures(branch, framework, platform)
-    sig_ids = filterSignatureIds(signatures, testname)
+    testnames = getTestNames(branch, framework, platform)
+    testnames = ['raptor-tp6-facebook-firefox']
 
-    for sig in sig_ids:
-        regressions = analyzeData(sig, branch, framework)
-        for d in regressions:
-            print d
+    for testname in testnames:
+        analyzeTest(framework, branch, platform, testname, subtests)
+        print ""
+
 
 if __name__ == "__main__":
     main()
