@@ -166,11 +166,11 @@ def analyzeTest(framework, branch, platform, testname, subtests):
        results = filterUniqueAlerts(results)
 
     for i in results:
-        print "%s: %s:%s (%s)" % (testname, i['sig']['option'], i['sig']['metric'], len(i['result']))
+        print("%s: %s:%s (%s)" % (testname, i['sig']['option'], i['sig']['metric'], len(i['result'])))
         for d in i['result']:
             date = datetime.datetime.fromtimestamp(float(d.push_timestamp)).isoformat()
-            print "%s (%s)" % (date, d.push_id)
-        print ""
+            print("%s (%s)" % (date, d.push_id))
+        print("")
 
 
 @click.command()
@@ -182,7 +182,7 @@ def cli(framework, branch, platforms, subtests):
     framework = getFrameworkId(framework)
 
     for platform in platforms:
-        print "-------- %s -------------" % platform
+        print("-------- %s -------------" % platform)
         testnames = getTestNames(branch, framework, platform)
 
         for testname in testnames:
