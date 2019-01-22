@@ -3,6 +3,8 @@ import requests
 import os
 import datetime
 
+import click
+
 from generate_alerts import RevisionDatum, detect_changes
 
 # constants in perfherder
@@ -171,7 +173,8 @@ def analyzeTest(framework, branch, platform, testname, subtests):
         print ""
 
 
-def main():
+@click.command()
+def cli():
     # variables
     framework = getFrameworkId('raptor')
     branch = 'mozilla-inbound'
@@ -187,4 +190,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    cli()
