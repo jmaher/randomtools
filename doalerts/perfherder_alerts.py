@@ -157,35 +157,36 @@ def filterUniqueAlerts(results):
     f_matched = set()
     s_matched = set()
     for s in first:
-        f_matched.update(
-            [
-                s
-                for f in second
-                if s < f + datetime.timedelta(hours=hours)
+        f_list = list()
+        for f in second:
+            if (
+                s < f + datetime.timedelta(hours=hours)
                 and s > f - datetime.timedelta(hours=hours)
                 and s not in list(f_matched)
-            ]
-        )
+            ):
+                f_list.append(s)
+        f_matched.update(f_list)
     for s in second:
-        s_matched.update(
-            [
-                s
-                for f in first
-                if s < f + datetime.timedelta(hours=hours)
+        s_list = list()
+        for f in first:
+            if (
+                s < f + datetime.timedelta(hours=hours)
                 and s > f - datetime.timedelta(hours=hours)
                 and s not in list(s_matched)
-            ]
-        )
+            ):
+                s_list.append(s)
+        s_matched.update(s_list)
     sets = [list(set(first) - f_matched), list(set(second) - s_matched)]
 
     for iter in [0, 1]:
         for item in results[iter]:
-            remaining = [
-                x
-                for x in results[iter]["result"]
-                if datetime.datetime.fromtimestamp(float(x.push_timestamp))
-                in sets[iter]
-            ]
+            remaining = list()
+            for x in results[iter]["result"]:
+                if (
+                    datetime.datetime.fromtimestamp(float(x.push_timestamp))
+                    in sets[iter]
+                ):
+                    remaining.append(x)
             if len(remaining) == 0:
                 continue
 
