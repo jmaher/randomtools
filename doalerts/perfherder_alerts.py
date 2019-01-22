@@ -193,7 +193,7 @@ def filterUniqueAlerts(results):
             filtered[iter]["result"] = remaining
         if filtered[iter] == {"sig": {}, "result": []}:
             filtered[iter] = None
-    results = [x for x in filtered if x != None]
+    results = [x for x in filtered if x is not None]
     return results
 
 
