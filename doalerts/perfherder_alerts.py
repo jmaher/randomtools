@@ -59,7 +59,7 @@ def getUrl(url, key):
 
     headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5)',
                'accept-encoding':'json'}
-    response = requests.get(url, headers=headers, verify=False)
+    response = requests.get(url, headers=headers)
     data = response.json()
 
     with open(keypath, 'wb') as f:
