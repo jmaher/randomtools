@@ -174,12 +174,12 @@ def analyzeTest(framework, branch, platform, testname, subtests):
 
 
 @click.command()
-def cli():
-    # variables
-    framework = getFrameworkId('raptor')
-    branch = 'mozilla-inbound'
-    platforms = ['linux64', 'windows7-32', 'windows10-64']
-    subtests = False
+@click.option("--framework", "-f", required=True, type=click.Choice([f["name"] for f in frameworks]))
+@click.option("--branch", "-b", required=True, type=click.Choice(branches))
+@click.option("--platform", "-p", "platforms", multiple=True, required=True, type=click.Choice(platforms))
+@click.option('--subtests/--no-subtests', default=False)
+def cli(framework, branch, platforms, subtests):
+    framework = getFrameworkId(framework)
 
     for platform in platforms:
         print "-------- %s -------------" % platform

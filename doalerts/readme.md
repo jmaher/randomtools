@@ -5,43 +5,40 @@ Some intended use cases:
 2) investigate the different between pgo and opt
 3) adjust alert parameters to determine if we get more/less alerts with different thresholds/parameters
 
-Usage:
+Installation:
+
 ```
-  python perfherder_alerts.py
+pipenv install
 ```
 
-Current output:
+Usage:
+
 ```
-  opt:ttfi                                            <- opt||pgo : <metric> 
-  <1545319998: 416379, [ 596.500 ], 7.076, True>      <- alert found <timestamp: pushid, [ value ], ttest result, alert T|F>
-  <1545607037: 417328, [ 626.500 ], 9.357, True>
-  opt:geomean
-  <1545319998: 416379, [ 380.380 ], 8.658, True>
-  <1545607037: 417328, [ 394.440 ], 8.364, True>
-  <1546034133: 418125, [ 453.630 ], 27.294, True>
-  pgo:ttfi
-  <1545599603: 417317, [ 593.000 ], 12.614, True>
-  pgo:loadtime
-  pgo:fnbpaint
-  <1545310832: 416336, [ 275.000 ], 7.970, True>
-  <1545607037: 417328, [ 283.500 ], 8.181, True>
-  pgo:hero:hero1
-  <1545330071: 416449, [ 677.000 ], 7.836, True>
-  pgo:dcf
-  <1545310832: 416336, [ 167.000 ], 8.328, True>
-  <1545599603: 417317, [ 170.000 ], 9.429, True>
-  pgo:geomean
-  <1545310832: 416336, [ 369.600 ], 9.036, True>
-  <1545599603: 417317, [ 372.170 ], 10.213, True>
-  <1546034133: 418125, [ 420.000 ], 19.099, True>
-  opt:fnbpaint
-  <1545319998: 416379, [ 289.500 ], 7.558, True>
-  opt:hero:hero1
-  <1545319998: 416379, [ 703.500 ], 8.397, True>
-  <1545607037: 417328, [ 739.000 ], 8.951, True>
-  opt:dcf
-  <1545319998: 416379, [ 172.000 ], 7.654, True>
-  opt:loadtime
+pipenv run python perfherder_alerts.py --framework raptor --branch mozilla-inbound --platform linux64 --platform windows7-32
+```
+
+Output:
+
+```
+-------- linux64 -------------                      <- <platform>
+raptor-tp6-wikia-firefox: pgo:geomean (1)           <- opt||pgo : <metric>
+2019-01-15T17:50:32 (423295)                        <- alert <timestamp> (<pushid>)
+
+raptor-tp6-wikia-firefox: opt:geomean (1)
+2019-01-18T09:19:57 (424516)
+
+raptor-tp6-sheets-firefox: opt:geomean (1)
+2018-12-28T21:55:33 (418125)
+
+-------- windows7-32 -------------
+raptor-tp6-wikia-firefox: opt:geomean (1)
+2018-12-23T23:17:17 (417328)
+
+raptor-tp6-wikia-firefox: pgo:geomean (1)
+2018-12-28T21:55:33 (418125)
+
+raptor-tp6-apple-firefox: opt:geomean (1)
+2019-01-18T10:32:47 (424533)
 ```
 
 you can see from this output that maybe pushids are common, one could assume that many of these alerts would be in the same alert summary.
