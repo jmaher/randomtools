@@ -125,7 +125,7 @@ class Alerts(object):
         self.branch = branch
         self.platforms = platforms
         self.subtests = subtests
-        self.interval = 86400 * days
+        self.interval = 86400 * int(days)
         self.test = re.compile(test)
         self.metrics = metrics
         self.verbose = verbose
@@ -199,7 +199,7 @@ class Alerts(object):
 
     def analyzeData(self, sig):
         url = f"{thurl}/api/project/{self.branch}/performance/data/?framework={self.framework}&interval={self.interval}&signature_id={sig['id']}"
-        key = f"{self.branch}-{self.framework}-{sig['id']}"
+        key = f"{self.branch}-{self.framework}-{sig['id']}-{self.interval}"
         payload = self.getUrl(url, key)
 
         runs = parseSignatureData(payload)
@@ -268,7 +268,9 @@ class Alerts(object):
     type=click.Choice(platforms),
 )
 @click.option("--subtests/--no-subtests", default=False)
-@click.option("--days", "-d", default=90)
+@click.option(
+    "--days", "-d", default="90", type=click.Choice(["1", "2", "7", "14", "30", "60", "90", "365"])
+)
 @click.option("--test", "-t")
 @click.option("--metric", "-m", "metrics", multiple=True)
 @click.option("--verbose", "-v", is_flag=True)
