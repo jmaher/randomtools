@@ -55,31 +55,6 @@ def parseSignatureData(payload):
     return data
 
 
-# useful for getting a given url from treeherder
-def getUrl(url, key):
-    if not os.path.exists("cache"):
-        os.makedirs("cache")
-
-    keypath = os.path.join("cache", f"{key}.json")
-    if os.path.exists(keypath):
-        # print(f"Restoring cached response for {url} from {keypath}")
-        with open(keypath, "r") as f:
-            return json.load(f)
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5)",
-        "accept-encoding": "json",
-    }
-    # print(f"Downloading response for {url}")
-    response = requests.get(url, headers=headers)
-    data = response.json()
-
-    with open(keypath, "w") as f:
-        # print(f"Caching response for {url} in {keypath}")
-        json.dump(data, f)
-    return data
-
-
 def getFrameworkId(name):
     retVal = [f["id"] for f in frameworks if f["name"] == name]
     return retVal[0]
@@ -165,18 +140,19 @@ def filterUniqueAlerts(results):
 
 class Alerts(object):
 
-    def __init__(self, framework, branch, platforms, subtests, days, test):
+    def __init__(self, framework, branch, platforms, subtests, days, test, verbose):
         self.framework = getFrameworkId(framework)
         self.branch = branch
         self.platforms = platforms
         self.subtests = subtests
         self.interval = 86_400 * days
         self.test = re.compile(test)
+        self.verbose = verbose
 
     def getSignatures(self, platform):
         url = f"{thurl}/api/project/{self.branch}/performance/signatures/?framework={self.framework}&interval={self.interval}&platform={platform}&subtests=1"
         key = f"{self.branch}-{self.framework}-{platform}-{self.interval}"
-        return getUrl(url, key)
+        return self.getUrl(url, key)
 
     def getTestNames(self, platform):
         signatures = self.getSignatures(platform)
@@ -186,10 +162,37 @@ class Alerts(object):
                 names.append(signatures[sig]["suite"])
         return names
 
+    # useful for getting a given url from treeherder
+    def getUrl(self, url, key):
+        if not os.path.exists("cache"):
+            os.makedirs("cache")
+
+        keypath = os.path.join("cache", f"{key}.json")
+        if os.path.exists(keypath):
+            if self.verbose:
+                print(f"Restoring cached response for {url} from {keypath}")
+            with open(keypath, "r") as f:
+                return json.load(f)
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5)",
+            "accept-encoding": "json",
+        }
+        if self.verbose:
+            print(f"Downloading response for {url}")
+        response = requests.get(url, headers=headers)
+        data = response.json()
+
+        with open(keypath, "w") as f:
+            if self.verbose:
+                print(f"Caching response for {url} in {keypath}")
+            json.dump(data, f)
+        return data
+
     def analyzeData(self, sig):
         url = f"{thurl}/api/project/{self.branch}/performance/data/?framework={self.framework}&interval={self.interval}&signature_id={sig['id']}"
         key = f"{self.branch}-{self.framework}-{sig['id']}"
-        payload = getUrl(url, key)
+        payload = self.getUrl(url, key)
 
         runs = parseSignatureData(payload)
         data = [RevisionDatum(r[0], r[1], r[2]) for r in runs]
@@ -250,8 +253,9 @@ class Alerts(object):
 @click.option("--subtests/--no-subtests", default=False)
 @click.option('--days', '-d', default=90)
 @click.option('--test', '-t')
-def cli(framework, branch, platforms, subtests, days, test):
-    alerts = Alerts(framework, branch, platforms, subtests, days, test)
+@click.option('--verbose', '-v', is_flag=True)
+def cli(framework, branch, platforms, subtests, days, test, verbose):
+    alerts = Alerts(framework, branch, platforms, subtests, days, test, verbose)
     alerts.do()
 
 
