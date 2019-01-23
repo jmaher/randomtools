@@ -14,7 +14,7 @@ pipenv install
 Usage:
 
 ```
-pipenv run python perfherder_alerts.py --framework raptor --branch mozilla-inbound --platform linux64 --interval 90 --test tp6
+pipenv run python perfherder_alerts.py --framework raptor --branch mozilla-inbound --platform linux64 --days 90 --test tp6
 ```
 
 Output:
