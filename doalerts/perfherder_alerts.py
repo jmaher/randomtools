@@ -148,6 +148,8 @@ class Alerts(object):
         self.interval = 86_400 * days
         self.test = re.compile(test)
         self.verbose = verbose
+        self.alerts = 0
+        self.push_ids = set()
 
     def getSignatures(self, platform):
         url = f"{thurl}/api/project/{self.branch}/performance/signatures/?framework={self.framework}&interval={self.interval}&platform={platform}&subtests=1"
@@ -220,6 +222,8 @@ class Alerts(object):
         for i in results:
             print(f"{testname}: {i['sig']['option']}:{i['sig']['metric']} ({len(i['result'])})")
             for d in i["result"]:
+                self.alerts += 1
+                self.push_ids.add(d.push_id)
                 date = datetime.datetime.fromtimestamp(float(d.push_timestamp)).isoformat()
                 print(f"{date} ({d.push_id})")
             print("")
@@ -232,6 +236,9 @@ class Alerts(object):
             filtered_testnames = filter(lambda x: self.test.search(x), testnames)
             for testname in filtered_testnames:
                 self.analyzeTest(platform, testname)
+
+        print(f"-------- summary --------")
+        print(f"{self.alerts} alerts found in {len(self.push_ids)} pushes")
 
 
 @click.command()
