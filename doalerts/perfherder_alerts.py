@@ -1,6 +1,7 @@
 import json
 import requests
 import os
+import re
 import datetime
 
 import click
@@ -8,8 +9,6 @@ import click
 from generate_alerts import RevisionDatum, detect_changes
 
 # constants in perfherder
-interval = 7776000  # 90 days
-interval = 31536000  # 1 year
 pgohash = "f69e1b00908837bf0550250abb1645014317e8ec"
 thurl = "https://treeherder.mozilla.org"
 
@@ -43,7 +42,7 @@ def parseSignatureData(payload):
             timestamp = item["push_timestamp"]
             pushid = item["push_id"]
             value = item["value"]
-            key = "%s:%s" % (timestamp, pushid)
+            key = f"{timestamp}:{pushid}"
             if key not in datum.keys():
                 datum[key] = []
             datum[key].append(value)
@@ -61,8 +60,9 @@ def getUrl(url, key):
     if not os.path.exists("cache"):
         os.makedirs("cache")
 
-    keypath = os.path.join("cache", "%s.json" % key)
+    keypath = os.path.join("cache", f"{key}.json")
     if os.path.exists(keypath):
+        # print(f"Restoring cached response for {url} from {keypath}")
         with open(keypath, "r") as f:
             return json.load(f)
 
@@ -70,10 +70,12 @@ def getUrl(url, key):
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5)",
         "accept-encoding": "json",
     }
+    # print(f"Downloading response for {url}")
     response = requests.get(url, headers=headers)
     data = response.json()
 
-    with open(keypath, "wb") as f:
+    with open(keypath, "w") as f:
+        # print(f"Caching response for {url} in {keypath}")
         json.dump(data, f)
     return data
 
@@ -83,15 +85,9 @@ def getFrameworkId(name):
     return retVal[0]
 
 
-def getSignatures(branch, framework, platform):
-    url = "%s/api/project/%s/performance/signatures/" % (thurl, branch)
-    url = "%s?framework=%s&interval=%s&platform=%s&subtests=1" % (
-        url,
-        framework,
-        interval,
-        platform,
-    )
-    key = "%s-%s-%s" % (branch, framework, platform)
+def getSignatures(branch, framework, platform, interval):
+    url = f"{thurl}/api/project/{branch}/performance/signatures/?framework={framework}&interval={interval}&platform={platform}&subtests=1"
+    key = f"{branch}-{framework}-{platform}-{interval}"
     return getUrl(url, key)
 
 
@@ -116,8 +112,8 @@ def filterSignatureIds(signatures, testname, subtests):
     return sig_ids
 
 
-def getTestNames(branch, framework, platform):
-    signatures = getSignatures(branch, framework, platform)
+def getTestNames(branch, framework, platform, interval):
+    signatures = getSignatures(branch, framework, platform, interval)
     names = []
     for sig in signatures:
         if signatures[sig]["suite"] not in names:
@@ -125,12 +121,9 @@ def getTestNames(branch, framework, platform):
     return names
 
 
-def analyzeData(sig, branch, framework):
-    url = (
-        "https://treeherder.mozilla.org/api/project/%s/performance/data/?framework=%s&interval=%s&signature_id=%s"
-        % (branch, framework, interval, sig["id"])
-    )
-    key = "%s-%s-%s" % (branch, framework, sig["id"])
+def analyzeData(sig, branch, framework, interval):
+    url = f"{thurl}/api/project/{branch}/performance/data/?framework={framework}&interval={interval}&signature_id={sig['id']}"
+    key = f"{branch}-{framework}-{sig['id']}"
     payload = getUrl(url, key)
 
     runs = parseSignatureData(payload)
@@ -198,13 +191,13 @@ def filterUniqueAlerts(results):
     return results
 
 
-def analyzeTest(framework, branch, platform, testname, subtests):
-    signatures = getSignatures(branch, framework, platform)
+def analyzeTest(framework, branch, platform, testname, subtests, interval):
+    signatures = getSignatures(branch, framework, platform, interval)
     sig_ids = filterSignatureIds(signatures, testname, subtests)
 
     results = []
     for sig in sig_ids:
-        result = analyzeData(sig, branch, framework)
+        result = analyzeData(sig, branch, framework, interval)
         if result:
             results.append({"sig": sig, "result": result})
 
@@ -215,13 +208,10 @@ def analyzeTest(framework, branch, platform, testname, subtests):
         results = filterUniqueAlerts(results)
 
     for i in results:
-        print(
-            "%s: %s:%s (%s)"
-            % (testname, i["sig"]["option"], i["sig"]["metric"], len(i["result"]))
-        )
+        print(f"{testname}: {i['sig']['option']}:{i['sig']['metric']} ({len(i['result'])})")
         for d in i["result"]:
             date = datetime.datetime.fromtimestamp(float(d.push_timestamp)).isoformat()
-            print("%s (%s)" % (date, d.push_id))
+            print(f"{date} ({d.push_id})")
         print("")
 
 
@@ -242,15 +232,20 @@ def analyzeTest(framework, branch, platform, testname, subtests):
     type=click.Choice(platforms),
 )
 @click.option("--subtests/--no-subtests", default=False)
-def cli(framework, branch, platforms, subtests):
+@click.option('--days', '-d', default=90)
+@click.option('--test', '-t')
+def cli(framework, branch, platforms, subtests, days, test):
+    test_regex = re.compile(test)
     framework = getFrameworkId(framework)
+    interval = 86_400 * days
 
     for platform in platforms:
-        print("-------- %s -------------" % platform)
-        testnames = getTestNames(branch, framework, platform)
+        print(f"-------- {platform} --------")
+        testnames = getTestNames(branch, framework, platform, interval)
 
-        for testname in testnames:
-            analyzeTest(framework, branch, platform, testname, subtests)
+        filtered_testnames = filter(lambda x: test_regex.search(x), testnames)
+        for testname in filtered_testnames:
+            analyzeTest(framework, branch, platform, testname, subtests, interval)
 
 
 if __name__ == "__main__":
