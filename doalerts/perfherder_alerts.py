@@ -60,27 +60,6 @@ def getFrameworkId(name):
     return retVal[0]
 
 
-def filterSignatureIds(signatures, testname, subtests):
-    sig_ids = []
-    for sig in signatures:
-        if signatures[sig]["suite"] == testname:
-            metric = "geomean"
-            option = "opt"
-            if signatures[sig]["option_collection_hash"] == pgohash:
-                option = "pgo"
-
-            # we have a subtest
-            if "test" in signatures[sig]:
-                metric = signatures[sig]["test"].split(testname)[-1].strip("-")
-                if not subtests:
-                    continue
-
-            sig_ids.append(
-                {"id": signatures[sig]["id"], "metric": metric, "option": option}
-            )
-    return sig_ids
-
-
 def filterUniqueAlerts(results):
     filtered = [{"sig": {}, "result": []}, {"sig": {}, "result": []}]
     # TODO: consider weekends or slow times for a longer window - 24 hours
@@ -140,13 +119,14 @@ def filterUniqueAlerts(results):
 
 class Alerts(object):
 
-    def __init__(self, framework, branch, platforms, subtests, days, test, verbose):
+    def __init__(self, framework, branch, platforms, subtests, days, test, metrics, verbose):
         self.framework = getFrameworkId(framework)
         self.branch = branch
         self.platforms = platforms
         self.subtests = subtests
         self.interval = 86_400 * days
         self.test = re.compile(test)
+        self.metrics = metrics
         self.verbose = verbose
         self.alerts = 0
         self.push_ids = set()
@@ -191,6 +171,27 @@ class Alerts(object):
             json.dump(data, f)
         return data
 
+    def filterSignatureIds(self, signatures, testname):
+        sig_ids = []
+        for sig in signatures:
+            if signatures[sig]["suite"] == testname:
+                metric = "geomean"
+                option = "opt"
+                if signatures[sig]["option_collection_hash"] == pgohash:
+                    option = "pgo"
+
+                # we have a subtest
+                if "test" in signatures[sig]:
+                    metric = signatures[sig]["test"].split(testname)[-1].strip("-")
+                    if not self.subtests:
+                        continue
+
+                if not self.metrics or metric in self.metrics:
+                    sig_ids.append(
+                        {"id": signatures[sig]["id"], "metric": metric, "option": option}
+                    )
+        return sig_ids
+
     def analyzeData(self, sig):
         url = f"{thurl}/api/project/{self.branch}/performance/data/?framework={self.framework}&interval={self.interval}&signature_id={sig['id']}"
         key = f"{self.branch}-{self.framework}-{sig['id']}"
@@ -205,7 +206,7 @@ class Alerts(object):
 
     def analyzeTest(self, platform, testname):
         signatures = self.getSignatures(platform)
-        sig_ids = filterSignatureIds(signatures, testname, self.subtests)
+        sig_ids = self.filterSignatureIds(signatures, testname)
 
         results = []
         for sig in sig_ids:
@@ -260,9 +261,10 @@ class Alerts(object):
 @click.option("--subtests/--no-subtests", default=False)
 @click.option('--days', '-d', default=90)
 @click.option('--test', '-t')
+@click.option('--metric', '-m', 'metrics', multiple=True)
 @click.option('--verbose', '-v', is_flag=True)
-def cli(framework, branch, platforms, subtests, days, test, verbose):
-    alerts = Alerts(framework, branch, platforms, subtests, days, test, verbose)
+def cli(framework, branch, platforms, subtests, days, test, metrics, verbose):
+    alerts = Alerts(framework, branch, platforms, subtests, days, test, metrics, verbose)
     alerts.do()
 
 
