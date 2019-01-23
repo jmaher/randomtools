@@ -85,12 +85,6 @@ def getFrameworkId(name):
     return retVal[0]
 
 
-def getSignatures(branch, framework, platform, interval):
-    url = f"{thurl}/api/project/{branch}/performance/signatures/?framework={framework}&interval={interval}&platform={platform}&subtests=1"
-    key = f"{branch}-{framework}-{platform}-{interval}"
-    return getUrl(url, key)
-
-
 def filterSignatureIds(signatures, testname, subtests):
     sig_ids = []
     for sig in signatures:
@@ -110,28 +104,6 @@ def filterSignatureIds(signatures, testname, subtests):
                 {"id": signatures[sig]["id"], "metric": metric, "option": option}
             )
     return sig_ids
-
-
-def getTestNames(branch, framework, platform, interval):
-    signatures = getSignatures(branch, framework, platform, interval)
-    names = []
-    for sig in signatures:
-        if signatures[sig]["suite"] not in names:
-            names.append(signatures[sig]["suite"])
-    return names
-
-
-def analyzeData(sig, branch, framework, interval):
-    url = f"{thurl}/api/project/{branch}/performance/data/?framework={framework}&interval={interval}&signature_id={sig['id']}"
-    key = f"{branch}-{framework}-{sig['id']}"
-    payload = getUrl(url, key)
-
-    runs = parseSignatureData(payload)
-    data = [RevisionDatum(r[0], r[1], r[2]) for r in runs]
-
-    results = detect_changes(data)
-    regressions = [d for d in results if d.change_detected]
-    return regressions
 
 
 def filterUniqueAlerts(results):
@@ -191,28 +163,72 @@ def filterUniqueAlerts(results):
     return results
 
 
-def analyzeTest(framework, branch, platform, testname, subtests, interval):
-    signatures = getSignatures(branch, framework, platform, interval)
-    sig_ids = filterSignatureIds(signatures, testname, subtests)
+class Alerts(object):
 
-    results = []
-    for sig in sig_ids:
-        result = analyzeData(sig, branch, framework, interval)
-        if result:
-            results.append({"sig": sig, "result": result})
+    def __init__(self, framework, branch, platforms, subtests, days, test):
+        self.framework = getFrameworkId(framework)
+        self.branch = branch
+        self.platforms = platforms
+        self.subtests = subtests
+        self.interval = 86_400 * days
+        self.test = re.compile(test)
 
-    if results == []:
-        return
+    def getSignatures(self, platform):
+        url = f"{thurl}/api/project/{self.branch}/performance/signatures/?framework={self.framework}&interval={self.interval}&platform={platform}&subtests=1"
+        key = f"{self.branch}-{self.framework}-{platform}-{self.interval}"
+        return getUrl(url, key)
 
-    if not subtests and len(results) == 2:
-        results = filterUniqueAlerts(results)
+    def getTestNames(self, platform):
+        signatures = self.getSignatures(platform)
+        names = []
+        for sig in signatures:
+            if signatures[sig]["suite"] not in names:
+                names.append(signatures[sig]["suite"])
+        return names
 
-    for i in results:
-        print(f"{testname}: {i['sig']['option']}:{i['sig']['metric']} ({len(i['result'])})")
-        for d in i["result"]:
-            date = datetime.datetime.fromtimestamp(float(d.push_timestamp)).isoformat()
-            print(f"{date} ({d.push_id})")
-        print("")
+    def analyzeData(self, sig):
+        url = f"{thurl}/api/project/{self.branch}/performance/data/?framework={self.framework}&interval={self.interval}&signature_id={sig['id']}"
+        key = f"{self.branch}-{self.framework}-{sig['id']}"
+        payload = getUrl(url, key)
+
+        runs = parseSignatureData(payload)
+        data = [RevisionDatum(r[0], r[1], r[2]) for r in runs]
+
+        results = detect_changes(data)
+        regressions = [d for d in results if d.change_detected]
+        return regressions
+
+    def analyzeTest(self, platform, testname):
+        signatures = self.getSignatures(platform)
+        sig_ids = filterSignatureIds(signatures, testname, self.subtests)
+
+        results = []
+        for sig in sig_ids:
+            result = self.analyzeData(sig)
+            if result:
+                results.append({"sig": sig, "result": result})
+
+        if results == []:
+            return
+
+        if not self.subtests and len(results) == 2:
+            results = filterUniqueAlerts(results)
+
+        for i in results:
+            print(f"{testname}: {i['sig']['option']}:{i['sig']['metric']} ({len(i['result'])})")
+            for d in i["result"]:
+                date = datetime.datetime.fromtimestamp(float(d.push_timestamp)).isoformat()
+                print(f"{date} ({d.push_id})")
+            print("")
+
+    def do(self):
+        for platform in self.platforms:
+            print(f"-------- {platform} --------")
+            testnames = self.getTestNames(platform)
+
+            filtered_testnames = filter(lambda x: self.test.search(x), testnames)
+            for testname in filtered_testnames:
+                self.analyzeTest(platform, testname)
 
 
 @click.command()
@@ -235,17 +251,8 @@ def analyzeTest(framework, branch, platform, testname, subtests, interval):
 @click.option('--days', '-d', default=90)
 @click.option('--test', '-t')
 def cli(framework, branch, platforms, subtests, days, test):
-    test_regex = re.compile(test)
-    framework = getFrameworkId(framework)
-    interval = 86_400 * days
-
-    for platform in platforms:
-        print(f"-------- {platform} --------")
-        testnames = getTestNames(branch, framework, platform, interval)
-
-        filtered_testnames = filter(lambda x: test_regex.search(x), testnames)
-        for testname in filtered_testnames:
-            analyzeTest(framework, branch, platform, testname, subtests, interval)
+    alerts = Alerts(framework, branch, platforms, subtests, days, test)
+    alerts.do()
 
 
 if __name__ == "__main__":
