@@ -118,13 +118,14 @@ def filterUniqueAlerts(results):
 
 
 class Alerts(object):
-
-    def __init__(self, framework, branch, platforms, subtests, days, test, metrics, verbose):
+    def __init__(
+        self, framework, branch, platforms, subtests, days, test, metrics, verbose
+    ):
         self.framework = getFrameworkId(framework)
         self.branch = branch
         self.platforms = platforms
         self.subtests = subtests
-        self.interval = 86_400 * days
+        self.interval = 86400 * days
         self.test = re.compile(test)
         self.metrics = metrics
         self.verbose = verbose
@@ -188,7 +189,11 @@ class Alerts(object):
 
                 if not self.metrics or metric in self.metrics:
                     sig_ids.append(
-                        {"id": signatures[sig]["id"], "metric": metric, "option": option}
+                        {
+                            "id": signatures[sig]["id"],
+                            "metric": metric,
+                            "option": option,
+                        }
                     )
         return sig_ids
 
@@ -221,11 +226,15 @@ class Alerts(object):
             results = filterUniqueAlerts(results)
 
         for i in results:
-            print(f"{testname}: {i['sig']['option']}:{i['sig']['metric']} ({len(i['result'])})")
+            print(
+                f"{testname}: {i['sig']['option']}:{i['sig']['metric']} ({len(i['result'])})"
+            )
             for d in i["result"]:
                 self.alerts += 1
                 self.push_ids.add(d.push_id)
-                date = datetime.datetime.fromtimestamp(float(d.push_timestamp)).isoformat()
+                date = datetime.datetime.fromtimestamp(
+                    float(d.push_timestamp)
+                ).isoformat()
                 print(f"{date} ({d.push_id})")
             print("")
 
@@ -259,12 +268,14 @@ class Alerts(object):
     type=click.Choice(platforms),
 )
 @click.option("--subtests/--no-subtests", default=False)
-@click.option('--days', '-d', default=90)
-@click.option('--test', '-t')
-@click.option('--metric', '-m', 'metrics', multiple=True)
-@click.option('--verbose', '-v', is_flag=True)
+@click.option("--days", "-d", default=90)
+@click.option("--test", "-t")
+@click.option("--metric", "-m", "metrics", multiple=True)
+@click.option("--verbose", "-v", is_flag=True)
 def cli(framework, branch, platforms, subtests, days, test, metrics, verbose):
-    alerts = Alerts(framework, branch, platforms, subtests, days, test, metrics, verbose)
+    alerts = Alerts(
+        framework, branch, platforms, subtests, days, test, metrics, verbose
+    )
     alerts.do()
 
 
