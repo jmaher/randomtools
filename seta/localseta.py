@@ -2,24 +2,15 @@ from __future__ import division
 import json
 
 # from the treeherder SETA implementation
-def is_matched(failure, removals):
-    found = False
-    if failure in removals:
-        found = True
-
-    return found
-
-# from the treeherder SETA implementation
 def check_removal(failures, removals):
     results = {}
     for failure in failures:
         results[failure] = []
         for failure_job in failures[failure]:
-            found = is_matched(failure_job, removals)
 
             # we will add the test to the resulting structure unless we find a match
             # in the jobtype we are trying to ignore.
-            if not found:
+            if not bool(filter(lambda x: failure_job in x, removals)):
                 results[failure].append(failure_job)
 
         if not results[failure]:
@@ -167,13 +158,9 @@ def parseTestname(item):
         testname = "testing/web-platform/tests%s" % testname
 
     nonTestPatterns = ['org.mozilla', 'tests/jit-test', 'testing/marionette/harness', 'awsy']
-    found = False
+
     tname = testname.replace('\\', '/')
-    for nonTestPattern in nonTestPatterns:
-        if tname.startswith(nonTestPattern):
-            found = True
-            break
-    if found:
+    if filter(lambda x: tname.startswith(x), nonTestPatterns):
         return ''
 
     if len(testname.split('.ini:')) > 1:
@@ -215,13 +202,7 @@ def testfilesPerRevision(data):
         if not testname:
             continue
 
-        found = False
-        for p in ['linux', 'android', 'win', 'osx', 'mac']:
-            if platform.startswith(p):
-                found = True
-                break
-        if not found:
-            print "skipping %s" % item
+        if filter(lambda x: platform.startswith(x), ['linux', 'android', 'win', 'osx', 'mac']):
             continue
 
         if rev not in perRevision:
