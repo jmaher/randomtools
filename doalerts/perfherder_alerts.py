@@ -22,11 +22,14 @@ frameworks = [
 branches = ["mozilla-inbound", "autoland", "mozilla-central"]
 platforms = [
     "windows10-64",
+    "windows10-64-shippable",
     "windows10-64-qr",
     "linux64",
+    "linux64-shippable",
     "linux64-qr",
     "osx-10-10",
     "windows7-32",
+    "windows7-32-shippable",
     "android-hw-p2-8-0-arm7-api-16",
     "android-hw-p2-8-0-android-aarch64",
     "android-hw-g5-7-0-arm7-api-16",
