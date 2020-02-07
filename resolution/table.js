@@ -17,15 +17,17 @@ function toggle(type, id='') {
         switch(type) {
             case 'product':
                 if (tval <= 0) val = pval;
-                else val = ((pval / tval) * 100).toPrecision(3);
+                else if (tval >= 20) val = ((pval / tval) * 100).toPrecision(3);
                 baseval = val;
-                val += "%";
+                if (val == tval) val = '';
+                if (val > 0) val += "%";
                 break
             case 'other':
                 if (tval <= 0) val = oval;
-                else val = ((oval / tval) * 100).toPrecision(3);
+                else if (tval >= 20) val = ((oval / tval) * 100).toPrecision(3);
                 baseval = val;
-                val += "%";
+                if (val == tval) val = '';
+                if (val > 0) val += "%";
                 break
         }
         document.getElementById(id).innerHTML = val;
