@@ -43,7 +43,6 @@ def _getBugzilaData():
         with open(cachename, 'r') as f:
             retVal = json.load(f)
     else:
-        api_key = 'QK6WQqXKGfHkEexKF3TuCYRr7bpTmZeuLF9x2gAM'
         retVal = {'bugs': []}
         done = False
         limit = 10000
@@ -77,10 +76,9 @@ def getBugDetails(bugid):
     return "", ""
 
 
-def createBug(path, buglist):
+def createBug(path, buglist, api_key):
     cachename = '_simplebug.json'
 
-    api_key = 'QK6WQqXKGfHkEexKF3TuCYRr7bpTmZeuLF9x2gAM'
     url = "https://bugzilla.mozilla.org/rest/bug"
 
     # get the product/component for the first bug in the list
@@ -312,10 +310,18 @@ def getHarnessTests(bugzillaData, intermittentData, harness):
     return paths, dirs, counter
 
 
+def getConfig(filename='.config'):
+    with open(filename, 'r') as f:
+        data = json.load(f)
+    return data
+
 
 basedir = '/c/Users/elvis/mozilla-central'
 bugzillaData = _getBugzilaData()
 intermittentData = getIntermittentData()
+config = getConfig()
+api_key = config['bzapi_key']
+
 
 # xpcshell summary rough filter
 xpcshell = {'name': 'xpcshell',
@@ -379,9 +385,9 @@ for path in paths:
 
 for path in paths:
     # skip existing tracking bugs, so we can incrementally do this.
-    # TODO: ensure we update bug list
     tracking = [x for x in paths[path]['summary'] if 'single tracking bug' in x]
     if not tracking:
-#        id = createBug(path, paths[path]['bugs'])
+#        if api_key:
+#        id = createBug(path, paths[path]['bugs'], api_key)
 #        print("created bug: %s" % id)
         break
