@@ -1,6 +1,8 @@
 import datetime
 import json
+import os
 import requests
+import sys
 import time
 
 from collections import defaultdict
@@ -58,7 +60,7 @@ def getHGData():
 def getTryPushes(user):
     # get_try_pushes
     # 
-    url = 'https://treeherder.mozilla.org/api/project/try/push/?full=true&count=50&author=%s' % user
+    url = 'https://treeherder.mozilla.org/api/project/try/push/?full=true&count=100&author=%s' % user
     response = requests.get(url, headers={'User-agent': 'Mozilla/5.0'})
     data = response.json()
     return data
@@ -75,7 +77,11 @@ def getUser(user):
            'sguelton@mozilla.com': 'serge.guelton@telecom-bretagne.eu',
            'mh+mozilla@glandium.org': 'mh@glandium.org',
            'will+git@drnd.me': 'wdurand@mozilla.com',
-           'git@intuitionlibrary.com:': 'gwatson@mozilla.com'
+           'git@intuitionlibrary.com:': 'gwatson@mozilla.com',
+           'ealvarez@mozilla.com': 'emilio@crisal.io',
+           'rvandermeulen@mozilla.com': 'ryanvm@gmail.com',
+           'tnikkel@mozilla.com': 'tnikkel@gmail.com',
+           'tjovanovic@mozilla.com': 'tomica@gmail.com'
           }
     
     if user in map.keys():
@@ -158,7 +164,10 @@ def getTryData(found):
 
 
 # for query
-api_key = '4moGUVgpTjHkkAi5eAi0shxeFyPop1YhZ5rBrCjY'
+api_key = os.environ.get("REDASH_API_KEY", "")
+if not api_key:
+    print("please set environment variable REDASH_API_KEY.  This can be found at: https://sql.telemetry.mozilla.org/users/me")
+    sys.exit(1)
 url = "https://sql.telemetry.mozilla.org"
 fbc_id = 91058
 try_id = 91059
@@ -174,9 +183,22 @@ revs = getHGData()
 # we will miss many "Backed out X changesets (Bug ABC, Bug XYZ, ...)"
 for rev in revs:
     if 'Backed out changeset' in revs[rev]['summary']:
-        brev = revs[rev]['summary'].split('Backed out changeset')[-1].strip()
+        parts = revs[rev]['summary'].split('Backed out changeset')
+
+        # if there are >1 cases of this, we need to find the first in the list, also assure same bug or ignore
+        if len(parts) > 2:
+            bugs = []
+            for part in parts[1:]:
+                bugs.append(part.split('bug ')[1].split(')')[0])
+            # TODO: figure out solution for this
+            # skipping for multiple bugs
+            if len(list(set(bugs))) < len(bugs):
+                continue
+        # use #0 as it will be the push rev
+        brev = parts[1].strip()
         brev = brev.split(' ')[0]
         if brev not in revs.keys():
+            print("%s (%s) :: didn't find backout rev %s in hglog" % (rev, revs[rev]['date'], brev))
             continue
         user = revs[brev]['user'].split('<')[-1]
         user = user.split('>')[0]
@@ -191,12 +213,12 @@ for rev in revs:
         else:
             continue
 
-        data = getTryPushes(user)
+        trypushes = getTryPushes(user)
 
         # results['push_timestamp'] < revs[brev]['date']
         # look for bug in revisions comment
         found = False
-        for results in data['results']:
+        for results in trypushes['results']:
             # TODO: push_timestamp is in local tz- not accurate (I hacked to add 7 hours)
             pt = datetime.datetime.fromtimestamp(int(results['push_timestamp']) + 25200)
             if pt >= revs[brev]['date']:
@@ -210,8 +232,16 @@ for rev in revs:
                 break
         
         if not found:
-            print("%s, %s, %s" % (brev, user, bug))
-            found = len(data['results'])
+            pushes_last_month = 0
+            for results in trypushes['results']:
+                pt = datetime.datetime.fromtimestamp(int(results['push_timestamp']))
+                now = datetime.datetime.now()
+                if (now-pt).days > 30:
+                    continue
+                pushes_last_month += 1
+            
+            print("%s, %s, %s, %s try pushes last month" % (brev, user, bug, pushes_last_month))
+            found = len(trypushes['results'])
         else:
             # {'taskname': [groups], 'taskname': [groups]}
             fbc = getFBCData(brev)
